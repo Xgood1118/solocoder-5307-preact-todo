@@ -57,8 +57,14 @@ export default function TodoDetail({ todoId, onBack }) {
   const [showSubTaskModal, setShowSubTaskModal] = useState(false)
   const [activeTab, setActiveTab] = useState('details')
   const [editMode, setEditMode] = useState('all')
+  const [isReadOnly, setIsReadOnly] = useState(false)
 
   const store = useStore()
+
+  const checkReadOnly = (settings) => {
+    if (settings.subscribed) return false
+    return settings.quotaUsed >= settings.operationQuota
+  }
 
   useEffect(() => {
     const state = getState()
@@ -66,11 +72,13 @@ export default function TodoDetail({ todoId, onBack }) {
     setTodo(found || null)
     setCategories(state.categories)
     setActivityLog(getActivityLogForTodo(todoId))
+    setIsReadOnly(checkReadOnly(state.settings))
 
     const unsubscribe = store.subscribe((newState) => {
       const updated = newState.todos.find(t => t.id === todoId)
       setTodo(updated || null)
       setActivityLog(getActivityLogForTodo(todoId))
+      setIsReadOnly(checkReadOnly(newState.settings))
     })
 
     return () => unsubscribe()
@@ -195,10 +203,20 @@ export default function TodoDetail({ todoId, onBack }) {
         <div className="detail-actions">
           {!isEditing ? (
             <>
-              <button className="btn btn-secondary" onClick={() => setIsEditing(true)}>
+              <button
+                className={`btn btn-secondary ${isReadOnly ? 'disabled' : ''}`}
+                onClick={() => !isReadOnly && setIsEditing(true)}
+                disabled={isReadOnly}
+                title={isReadOnly ? '只读模式，无法编辑' : ''}
+              >
                 ✏️ 编辑
               </button>
-              <button className="btn btn-danger" onClick={handleDelete}>
+              <button
+                className={`btn btn-danger ${isReadOnly ? 'disabled' : ''}`}
+                onClick={() => !isReadOnly && handleDelete()}
+                disabled={isReadOnly}
+                title={isReadOnly ? '只读模式，无法删除' : ''}
+              >
                 🗑️ 删除
               </button>
             </>
@@ -214,6 +232,12 @@ export default function TodoDetail({ todoId, onBack }) {
           )}
         </div>
       </div>
+
+      {isReadOnly && (
+        <div className="readonly-banner">
+          ⚠️ 只读模式：本月操作配额已用完。仅可完成任务，不可编辑或删除。
+        </div>
+      )}
 
       {isEditing && todo.repeatRule && todo.repeatRule.type !== REPEAT_TYPES.NONE && (
         <div className="edit-mode-selector">
@@ -529,17 +553,23 @@ export default function TodoDetail({ todoId, onBack }) {
                   <div className="attachment-form">
                     <input
                       type="text"
-                      placeholder="附件名称"
+                      placeholder={isReadOnly ? "只读模式" : "附件名称"}
                       value={newAttachmentName}
                       onInput={e => setNewAttachmentName(e.target.value)}
+                      disabled={isReadOnly}
                     />
                     <input
                       type="text"
-                      placeholder="链接地址"
+                      placeholder={isReadOnly ? "只读模式" : "链接地址"}
                       value={newAttachmentUrl}
                       onInput={e => setNewAttachmentUrl(e.target.value)}
+                      disabled={isReadOnly}
                     />
-                    <button className="btn btn-primary" onClick={handleAddAttachment}>
+                    <button
+                      className={`btn btn-primary ${isReadOnly ? 'disabled' : ''}`}
+                      onClick={handleAddAttachment}
+                      disabled={isReadOnly}
+                    >
                       添加
                     </button>
                   </div>
@@ -554,12 +584,17 @@ export default function TodoDetail({ todoId, onBack }) {
             <div className="subtask-input">
               <input
                 type="text"
-                placeholder="添加子任务..."
+                placeholder={isReadOnly ? "只读模式，无法添加子任务" : "添加子任务..."}
                 value={newSubTask}
                 onInput={e => setNewSubTask(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleAddSubTask()}
+                disabled={isReadOnly}
               />
-              <button className="btn btn-primary" onClick={handleAddSubTask}>
+              <button
+                className={`btn btn-primary ${isReadOnly ? 'disabled' : ''}`}
+                onClick={handleAddSubTask}
+                disabled={isReadOnly}
+              >
                 添加
               </button>
             </div>
@@ -611,12 +646,17 @@ export default function TodoDetail({ todoId, onBack }) {
           <div className="notes-panel">
             <div className="note-input">
               <textarea
-                placeholder="添加备注..."
+                placeholder={isReadOnly ? "只读模式，无法添加备注" : "添加备注..."}
                 value={newNote}
                 onInput={e => setNewNote(e.target.value)}
                 rows="3"
+                disabled={isReadOnly}
               />
-              <button className="btn btn-primary" onClick={handleAddNote}>
+              <button
+                className={`btn btn-primary ${isReadOnly ? 'disabled' : ''}`}
+                onClick={handleAddNote}
+                disabled={isReadOnly}
+              >
                 添加备注
               </button>
             </div>

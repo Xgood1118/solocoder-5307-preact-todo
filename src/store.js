@@ -225,14 +225,18 @@ export function createTodo(title, options = {}) {
 }
 
 export function updateTodo(id, updates, editMode = 'all') {
-  if (!checkQuota()) {
-    return { success: false, error: '配额不足' }
-  }
-
   const index = state.todos.findIndex(t => t.id === id)
   if (index === -1) return { success: false, error: '任务不存在' }
 
   const oldTodo = { ...state.todos[index] }
+
+  const isCompleting = updates.status === TODO_STATUSES.COMPLETED && oldTodo.status !== TODO_STATUSES.COMPLETED
+  const isOnlyStatusChange = Object.keys(updates).length === 1 && updates.status !== undefined
+  const isOnlyCompleting = isOnlyStatusChange && isCompleting
+
+  if (!isOnlyCompleting && !checkQuota()) {
+    return { success: false, error: '配额不足，请升级订阅' }
+  }
   const now = new Date().toISOString()
 
   const updated = {
@@ -275,7 +279,14 @@ export function updateTodo(id, updates, editMode = 'all') {
   }
 
   state.todos[index] = updated
-  useQuota()
+
+  const finalStatusIsCompleted = updated.status === TODO_STATUSES.COMPLETED
+  const wasNotCompleted = oldTodo.status !== TODO_STATUSES.COMPLETED
+  const justCompleted = finalStatusIsCompleted && wasNotCompleted
+
+  if (!justCompleted) {
+    useQuota()
+  }
 
   const changedFields = Object.keys(updates).filter(k => oldTodo[k] !== updates[k])
   if (changedFields.length > 0) {
@@ -390,8 +401,12 @@ function adjustReminderTime(reminderTime, oldDueDate, newDueDate) {
 }
 
 export function deleteTodo(id, strategy = 'trash') {
+  if (!checkQuota()) {
+    return { success: false, error: '配额不足，请升级订阅' }
+  }
+
   const index = state.todos.findIndex(t => t.id === id)
-  if (index === -1) return { success: false }
+  if (index === -1) return { success: false, error: '任务不存在' }
 
   const todo = state.todos[index]
 
@@ -438,8 +453,12 @@ export function purgeOldTrash() {
 }
 
 export function addSubTask(todoId, title) {
+  if (!checkQuota()) {
+    return { success: false, error: '配额不足，请升级订阅' }
+  }
+
   const todo = state.todos.find(t => t.id === todoId)
-  if (!todo) return { success: false }
+  if (!todo) return { success: false, error: '任务不存在' }
 
   const subTask = {
     id: generateId('sub'),
@@ -466,10 +485,20 @@ export function addSubTask(todoId, title) {
 
 export function toggleSubTask(todoId, subTaskId) {
   const todo = state.todos.find(t => t.id === todoId)
-  if (!todo) return { success: false }
+  if (!todo) return { success: false, error: '任务不存在' }
 
   const subTask = todo.subTasks.find(st => st.id === subTaskId)
-  if (!subTask) return { success: false }
+  if (!subTask) return { success: false, error: '子任务不存在' }
+
+  const willComplete = !subTask.completed &&
+    todo.subTasks.filter(st => st.completed).length === todo.subTasks.length - 1 &&
+    todo.status !== TODO_STATUSES.COMPLETED
+
+  if (!willComplete && !checkQuota()) {
+    return { success: false, error: '配额不足，请升级订阅' }
+  }
+
+  const wasCompleted = todo.status === TODO_STATUSES.COMPLETED
 
   subTask.completed = !subTask.completed
   todo.lastEditedAt = new Date().toISOString()
@@ -488,7 +517,10 @@ export function toggleSubTask(todoId, subTaskId) {
     todo.startedAt = new Date().toISOString()
   }
 
-  useQuota()
+  const justCompleted = todo.status === TODO_STATUSES.COMPLETED && !wasCompleted
+  if (!justCompleted) {
+    useQuota()
+  }
   addActivityLog(todoId, 'toggle_subtask', {
     subTaskId,
     subTaskTitle: subTask.title,
@@ -500,8 +532,12 @@ export function toggleSubTask(todoId, subTaskId) {
 }
 
 export function deleteSubTask(todoId, subTaskId) {
+  if (!checkQuota()) {
+    return { success: false, error: '配额不足，请升级订阅' }
+  }
+
   const todo = state.todos.find(t => t.id === todoId)
-  if (!todo) return { success: false }
+  if (!todo) return { success: false, error: '任务不存在' }
 
   todo.subTasks = todo.subTasks.filter(st => st.id !== subTaskId)
   todo.lastEditedAt = new Date().toISOString()
@@ -515,8 +551,12 @@ export function deleteSubTask(todoId, subTaskId) {
 }
 
 export function addNote(todoId, content) {
+  if (!checkQuota()) {
+    return { success: false, error: '配额不足，请升级订阅' }
+  }
+
   const todo = state.todos.find(t => t.id === todoId)
-  if (!todo) return { success: false }
+  if (!todo) return { success: false, error: '任务不存在' }
 
   const note = {
     id: generateId('note'),
@@ -536,8 +576,12 @@ export function addNote(todoId, content) {
 }
 
 export function addAttachment(todoId, name, url) {
+  if (!checkQuota()) {
+    return { success: false, error: '配额不足，请升级订阅' }
+  }
+
   const todo = state.todos.find(t => t.id === todoId)
-  if (!todo) return { success: false }
+  if (!todo) return { success: false, error: '任务不存在' }
 
   const attachment = {
     id: generateId('att'),
@@ -558,8 +602,12 @@ export function addAttachment(todoId, name, url) {
 }
 
 export function deleteAttachment(todoId, attachmentId) {
+  if (!checkQuota()) {
+    return { success: false, error: '配额不足，请升级订阅' }
+  }
+
   const todo = state.todos.find(t => t.id === todoId)
-  if (!todo) return { success: false }
+  if (!todo) return { success: false, error: '任务不存在' }
 
   todo.attachments = todo.attachments.filter(a => a.id !== attachmentId)
   todo.lastEditedAt = new Date().toISOString()

@@ -43,6 +43,8 @@ export default function TodoList({ onSelectTodo }) {
   const [missedReminders, setMissedReminders] = useState([])
   const [showMissedReminders, setShowMissedReminders] = useState(false)
   const [collapseCompleted, setCollapseCompleted] = useState(true)
+  const [includeArchived, setIncludeArchived] = useState(false)
+  const [isReadOnly, setIsReadOnly] = useState(false)
 
   const [filters, setFilters] = useState({
     categories: [],
@@ -55,25 +57,38 @@ export default function TodoList({ onSelectTodo }) {
 
   const store = useStore()
 
+  const applyFilters = (currentFilters, includeArchivedFlag) => {
+    let filtered = getFilteredTodos(currentFilters)
+    if (!includeArchivedFlag) {
+      filtered = filtered.filter(t => t.status !== TODO_STATUSES.ARCHIVED)
+    }
+    return sortTodos(filtered, sortBy)
+  }
+
+  const checkReadOnly = (settings) => {
+    if (settings.subscribed) return false
+    return settings.quotaUsed >= settings.operationQuota
+  }
+
   useEffect(() => {
     const state = getState()
     setCategories(state.categories)
     setCollapseCompleted(state.settings.collapseCompleted)
     setMissedReminders(state.missedReminders)
+    setIsReadOnly(checkReadOnly(state.settings))
 
-    const filtered = getFilteredTodos(filters)
-    const sorted = sortTodos(filtered, sortBy)
-    setTodos(sorted)
+    const filtered = applyFilters(filters, includeArchived)
+    setTodos(filtered)
     setStats(getStats())
 
     const unsubscribe = store.subscribe((newState) => {
       setCategories(newState.categories)
       setMissedReminders(newState.missedReminders)
       setCollapseCompleted(newState.settings.collapseCompleted)
+      setIsReadOnly(checkReadOnly(newState.settings))
 
-      const newFiltered = getFilteredTodos(filters)
-      const newSorted = sortTodos(newFiltered, sortBy)
-      setTodos(newSorted)
+      const newFiltered = applyFilters(filters, includeArchived)
+      setTodos(newFiltered)
       setStats(getStats())
     })
 
@@ -81,10 +96,9 @@ export default function TodoList({ onSelectTodo }) {
   }, [])
 
   useEffect(() => {
-    const filtered = getFilteredTodos(filters)
-    const sorted = sortTodos(filtered, sortBy)
-    setTodos(sorted)
-  }, [filters, sortBy])
+    const filtered = applyFilters(filters, includeArchived)
+    setTodos(filtered)
+  }, [filters, sortBy, includeArchived])
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
@@ -292,16 +306,27 @@ export default function TodoList({ onSelectTodo }) {
         </div>
       )}
 
+      {isReadOnly && (
+        <div className="readonly-banner">
+          ⚠️ 本月操作配额已用完，已进入只读模式。可以勾选完成任务，但不能创建或编辑新任务。月底自动重置配额。
+        </div>
+      )}
+
       <div className="input-section">
         <input
           type="text"
-          className="todo-input"
-          placeholder="输入待办事项，按回车添加..."
+          className={`todo-input ${isReadOnly ? 'disabled' : ''}`}
+          placeholder={isReadOnly ? "只读模式，无法新增待办" : "输入待办事项，按回车添加..."}
           value={inputValue}
           onInput={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
+          disabled={isReadOnly}
         />
-        <button className="advanced-btn" onClick={() => setShowAdvanced(true)}>
+        <button
+          className={`advanced-btn ${isReadOnly ? 'disabled' : ''}`}
+          onClick={() => !isReadOnly && setShowAdvanced(true)}
+          disabled={isReadOnly}
+        >
           ⚙️ 高级添加
         </button>
       </div>
@@ -401,7 +426,24 @@ export default function TodoList({ onSelectTodo }) {
               >
                 已逾期
               </button>
+              <button
+                className={`filter-chip ${filters.statuses.includes(TODO_STATUSES.ARCHIVED) ? 'active' : ''}`}
+                onClick={() => toggleFilter('statuses', TODO_STATUSES.ARCHIVED)}
+              >
+                已归档
+              </button>
             </div>
+          </div>
+
+          <div className="filter-section">
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={includeArchived}
+                onChange={(e) => setIncludeArchived(e.target.checked)}
+              />
+              显示已归档任务
+            </label>
           </div>
 
           {hasFilters && (

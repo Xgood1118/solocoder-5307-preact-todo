@@ -142,14 +142,38 @@ export default function SettingsPanel({ onClose, settings }) {
               </div>
             </div>
             {!localSettings.subscribed && (
-              <div className="quota-info">
-                <span>本月配额：{localSettings.quotaUsed || 0} / {localSettings.operationQuota}</span>
-                <div className="quota-bar">
-                  <div
-                    className="quota-fill"
-                    style={{ width: `${Math.min(100, ((localSettings.quotaUsed || 0) / localSettings.operationQuota) * 100)}%` }}
-                  ></div>
+              <div className="quota-section">
+                <div className="quota-info">
+                  <span>本月操作配额：{localSettings.quotaUsed || 0} / {localSettings.operationQuota}</span>
+                  <div className="quota-bar">
+                    <div
+                      className="quota-fill"
+                      style={{ width: `${Math.min(100, ((localSettings.quotaUsed || 0) / localSettings.operationQuota) * 100)}%` }}
+                    ></div>
+                  </div>
                 </div>
+                <div className="quota-info">
+                  <span>任务数量：{stats.total} / {localSettings.maxTodos}</span>
+                  <div className="quota-bar">
+                    <div
+                      className="quota-fill quota-todos"
+                      style={{ width: `${Math.min(100, (stats.total / localSettings.maxTodos) * 100)}%` }}
+                    ></div>
+                  </div>
+                </div>
+                {localSettings.quotaUsed >= localSettings.operationQuota && (
+                  <div className="quota-warning">
+                    ⚠️ 配额已用完，当前为只读模式（仅可完成任务）
+                  </div>
+                )}
+                {stats.total >= localSettings.maxTodos && (
+                  <div className="quota-warning">
+                    ⚠️ 任务数量已达上限，请升级订阅或删除旧任务
+                  </div>
+                )}
+                <p className="quota-hint">
+                  配额将在每月 1 号 00:00 自动重置
+                </p>
               </div>
             )}
           </div>
