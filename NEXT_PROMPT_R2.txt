@@ -1,0 +1,1 @@
+归档那个还是用不了。我把一个待办手动改成 status=archived 存进 localStorage，重新打开页面勾上「已归档」chip 和「显示已归档任务」开关，列表里空空如也。翻了 TodoList.jsx 看，todos 拆 activeTodos 和 completedTodos 两块，archived 两边都进不去，所以根本没渲染路径。补一下。
